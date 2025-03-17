@@ -49,12 +49,13 @@ RIEMANN = $(CLAW)/riemann/src
 MODULES = \
 
 SOURCES = \
-  $(RIEMANN)/rpn2_geoclaw.f \
+  ./rpn2_shallow_fwave.f90 \
   $(RIEMANN)/rpt2_geoclaw.f \
   $(RIEMANN)/geoclaw_riemann_utils.f \
   ./qinit.f90
 
-#   ../rpn2_shallow_fwave.f90
+# $(RIEMANN)/rpn2_geoclaw.f \
+
   
   
 

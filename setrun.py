@@ -11,6 +11,15 @@ import numpy as np
 
 import clawpack.clawutil.data as data
 
+# Solution parameters
+M = 0.5
+g = 1.0
+c1 = 0.04
+c2 = 0.02
+alpha = np.pi / 6.0
+x0 = -20.0
+y0 = -10.0
+
 # ------------------------------
 def setrun(claw_pkg='geoclaw'):
 
@@ -285,31 +294,14 @@ def setrun(claw_pkg='geoclaw'):
 
     # == setregions.data values ==
     regions = rundata.regiondata.regions
-    # to specify regions of refinement append lines of the form
-    #  [minlevel,maxlevel,t1,t2,x1,x2,y1,y2]
-    # rundata.gaugedata.gauges.append([1, 0.0, 0.0, rundata.clawdata.t0, rundata.clawdata.tfinal])
-    # rundata.gaugedata.gauges.append([2, 0.5, 0.0, rundata.clawdata.t0, rundata.clawdata.tfinal])
-    # rundata.gaugedata.gauges.append([3, 0.8, 0.0, rundata.clawdata.t0, rundata.clawdata.tfinal])
-    # num_gauges = 11
-    # for i in range(num_gauges):
-    #     n = i + num_gauges * 2
-    #     rundata.gaugedata.gauges.append([n, 2000e3 / (num_gauges - 1) * (i - 0.0), 
-    #                                         -250e3, 
-    #                                         rundata.clawdata.t0, rundata.clawdata.tfinal])
-    #     n = i
-    #     rundata.gaugedata.gauges.append([n, 2000e3 / (num_gauges - 1) * (i - 0.0), 
-    #                                         0.0, 
-    #                                         rundata.clawdata.t0, rundata.clawdata.tfinal])
-    #     n = i + num_gauges
-    #     rundata.gaugedata.gauges.append([n, 2000e3 / (num_gauges - 1) * (i - 0.0), 
-    #                                         250e3, 
-    #                                         rundata.clawdata.t0, rundata.clawdata.tfinal])
 
-    # rundata.gaugedata.gauges.append([100, -100e3, 0.0,
-    #                                         rundata.clawdata.t0, rundata.clawdata.tfinal])
-
-    # Force the gauges to also record the wind and pressure fields
-    # rundata.gaugedata.aux_out_fields = [4, 5, 6]
+    # Gauges
+    gauges = rundata.gaugedata.gauges
+    gauges.append([0, x0 + 10.0 * np.cos(alpha), y0 + 10.0 * np.sin(alpha), 0, clawdata.tfinal])
+    gauges.append([1, x0 + 20.0 * np.cos(alpha), y0 + 20.0 * np.sin(alpha), 0, clawdata.tfinal])
+    gauges.append([2, x0 + 30.0 * np.cos(alpha), y0 + 30.0 * np.sin(alpha), 0, clawdata.tfinal])
+    gauges.append([3, x0 + 40.0 * np.cos(alpha), y0 + 40.0 * np.sin(alpha), 0, clawdata.tfinal])
+    gauges.append([4, x0 + 50.0 * np.cos(alpha), y0 + 50.0 * np.sin(alpha), 0, clawdata.tfinal])
 
     # ------------------------------------------------------------------
     # GeoClaw specific parameters:
