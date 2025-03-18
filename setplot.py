@@ -34,21 +34,12 @@ def exact_solution(x, y, t):
 
     return h(x, y, t), u(x, y, t), v(x, y, t)
 
-
-def extract_vorticity(delta, u, v):
-    omega = np.zeros(u.shape)
-    omega[1:-1, 1:-1] += (v[2:,1:-1] - v[:-2,1:-1]) / (2.0 * delta[0])
-    omega[1:-1, 1:-1] -= (u[1:-1,2:] - u[1:-1,:-2]) / (2.0 * delta[1])
-    return omega
-
-def water_vorticity(cd):
-    delta = [cd.x[1, 0] - cd.x[0, 0], cd.y[0, 1] - cd.y[0, 0]]
-    return extract_vorticity(delta, surgeplot.water_u(cd), surgeplot.water_v(cd))
+def extract_eta(cd):
+    return cd.q[0, :, :] - 1
 
 def eta_error(cd):
-    eta = surgeplot.extract_eta(cd.q[0, :, :], cd.q[3, :, :])
     h, u, v = exact_solution(cd.x, cd.y, cd.t)
-    return eta - (h - 1.0)
+    return extract_eta(cd) - (h - 1.0)
 
 def speed_error(cd):
     speed = surgeplot.water_speed(cd)
@@ -56,35 +47,11 @@ def speed_error(cd):
     return speed - np.sqrt(u**2 + v**2)
 
 def vorticity_error(cd):
-    omega = water_vorticity(cd)
+    omega = surgeplot.water_vorticity(cd)
     h, u, v = exact_solution(cd.x, cd.y, cd.t)
     delta = [cd.x[1, 0] - cd.x[0, 0], cd.y[0, 1] - cd.y[0, 0]]
-    exact_omega = extract_vorticity(delta, u, v)
+    exact_omega = surgeplot.extract_vorticity(delta, u, v)
     return omega - exact_omega
-
-
-# Plotting function
-def add_vorticity(plotaxes, plot_type="pcolor", bounds=None, contours=None, shrink=1.0):
-    """Add vorticity plot to plotaxes"""
-
-    vorticity_cmap = plt.get_cmap('PRGn')
-
-    if plot_type == 'pcolor' or plot_type == 'imshow':
-        plotitem = plotaxes.new_plotitem(name='surface', plot_type='2d_pcolor')
-        plotitem.plot_var = water_vorticity
-
-        if bounds is not None:
-            if bounds[0] == 0.0:
-                plotitem.pcolor_cmap = plt.get_cmap('OrRd')
-            else:
-                plotitem.pcolor_cmap = vorticity_cmap
-            plotitem.pcolor_cmin = bounds[0]
-            plotitem.pcolor_cmax = bounds[1]
-        plotitem.add_colorbar = True
-        plotitem.colorbar_shrink = shrink
-        plotitem.colorbar_label = "Vorticity (1/s)"
-        plotitem.amr_celledges_show = [0] * 10
-        plotitem.amr_patchedges_show = [1, 1, 1, 0, 0, 0, 0]
 
 # Setplot
 def setplot(plotdata=None):
@@ -99,14 +66,21 @@ def setplot(plotdata=None):
     plotdata.format = 'ascii'
 
     # Load data from output
-    clawdata = clawutil.ClawInputData(2)
-    clawdata.read(os.path.join(plotdata.outdir, 'claw.data'))
-    physics = geodata.GeoClawData()
-    physics.read(os.path.join(plotdata.outdir, 'geoclaw.data'))
-    surge_data = geodata.SurgeData()
-    surge_data.read(os.path.join(plotdata.outdir, 'surge.data'))
-    friction_data = geodata.FrictionData()
-    friction_data.read(os.path.join(plotdata.outdir, 'friction.data'))
+    try:
+        clawdata = clawutil.ClawInputData(2)
+        clawdata.read(os.path.join(plotdata.outdir, 'claw.data'))
+        physics = geodata.GeoClawData()
+        physics.read(os.path.join(plotdata.outdir, 'geoclaw.data'))
+        surge_data = geodata.SurgeData()
+        surge_data.read(os.path.join(plotdata.outdir, 'surge.data'))
+        friction_data = geodata.FrictionData()
+        friction_data.read(os.path.join(plotdata.outdir, 'friction.data'))
+
+        domain_limits = ((clawdata.lower[0], clawdata.upper[0]), 
+                         (clawdata.lower[1], clawdata.upper[1]))
+    except:
+        # Assume that we are running PyClaw
+        domain_limits = (None, None)    
 
     # Color limits
     surface_limits = [-0.02, 0.02]
@@ -124,11 +98,11 @@ def setplot(plotdata=None):
     plotfigure.kwargs = {"figsize": (6.4, 4.8)}
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = "Surface"
-    plotaxes.xlimits = (clawdata.lower[0], clawdata.upper[0])
-    plotaxes.ylimits = (clawdata.lower[1], clawdata.upper[1])
+    plotaxes.xlimits = domain_limits[0]
+    plotaxes.ylimits = domain_limits[1]
 
     surgeplot.add_surface_elevation(plotaxes, bounds=surface_limits)
-    surgeplot.add_land(plotaxes, bounds=[0.0, 20.0])
+    plotaxes.plotitem_dict['surface'].plot_var = extract_eta
     plotaxes.plotitem_dict['surface'].amr_patchedges_show = [0] * 10
 
     # Speed Figure
@@ -137,8 +111,8 @@ def setplot(plotdata=None):
     plotfigure.show = True
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = "Currents"
-    plotaxes.xlimits = (clawdata.lower[0], clawdata.upper[0])
-    plotaxes.ylimits = (clawdata.lower[1], clawdata.upper[1])
+    plotaxes.xlimits = domain_limits[0]
+    plotaxes.ylimits = domain_limits[1]
 
     surgeplot.add_speed(plotaxes, bounds=speed_limits)
     plotaxes.plotitem_dict['speed'].amr_patchedges_show = [0] * 10
@@ -149,10 +123,10 @@ def setplot(plotdata=None):
     plotfigure.show = True
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = "Vorticity"
-    plotaxes.xlimits = (clawdata.lower[0], clawdata.upper[0])
-    plotaxes.ylimits = (clawdata.lower[1], clawdata.upper[1])
+    plotaxes.xlimits = domain_limits[0]
+    plotaxes.ylimits = domain_limits[1]
 
-    add_vorticity(plotaxes, bounds=vorticity_limits)
+    surgeplot.add_vorticity(plotaxes, bounds=vorticity_limits)
     plotaxes.plotitem_dict['surface'].amr_patchedges_show = [0] * 10
 
     # ========================================================================
@@ -183,8 +157,8 @@ def setplot(plotdata=None):
     plotfigure.kwargs = {"figsize": (6.4, 4.8)}
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = r"$\eta$ Error"
-    plotaxes.xlimits = (clawdata.lower[0], clawdata.upper[0])
-    plotaxes.ylimits = (clawdata.lower[1], clawdata.upper[1])
+    plotaxes.xlimits = domain_limits[0]
+    plotaxes.ylimits = domain_limits[1]
     plotaxes.afteraxes = add_eta_error_title
     
     plotitem = plotaxes.new_plotitem(name='surface error', plot_type='2d_pcolor')
@@ -200,8 +174,8 @@ def setplot(plotdata=None):
     plotfigure.kwargs = {"figsize": (6.4, 4.8)}
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = r"Speed Error"
-    plotaxes.xlimits = (clawdata.lower[0], clawdata.upper[0])
-    plotaxes.ylimits = (clawdata.lower[1], clawdata.upper[1])
+    plotaxes.xlimits = domain_limits[0]
+    plotaxes.ylimits = domain_limits[1]
     plotaxes.afteraxes = add_speed_error_title
     
     plotitem = plotaxes.new_plotitem(name='speed error', plot_type='2d_pcolor')
@@ -217,8 +191,8 @@ def setplot(plotdata=None):
     plotfigure.kwargs = {"figsize": (6.4, 4.8)}
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = r"Vorticity Error"
-    plotaxes.xlimits = (clawdata.lower[0], clawdata.upper[0])
-    plotaxes.ylimits = (clawdata.lower[1], clawdata.upper[1])
+    plotaxes.xlimits = domain_limits[0]
+    plotaxes.ylimits = domain_limits[1]
     plotaxes.afteraxes = add_vorticity_error_title
     
     plotitem = plotaxes.new_plotitem(name='vorticity error', plot_type='2d_pcolor')
@@ -235,11 +209,15 @@ def setplot(plotdata=None):
         max_value = np.max(np.abs(current_data.q[field, :, :]))
         # plt.gca().set_title(title.format(field, max_value))
 
-    def transect_eta(current_data, y0=0.0):
-        y = current_data.y
-        dy = current_data.dy
+    def transect_eta(cd, y0=0.0):
+        y = cd.y
+        dy = cd.dy
         index = np.where(abs(y - y0) <= dy / 2.0)[1][0]
-        return current_data.x[:, index], current_data.q[3, :, index]
+        if cd.q.shape[0] > 3:
+            eta = surgeplot.extract_eta(cd.q[0, :, index], cd.q[3, :, index])
+        else:
+            eta = cd.q[0, :, index] - 1
+        return cd.x[:, index], eta
 
     def transect_velocity(current_data, y0=0.0):
         y = current_data.y
@@ -260,7 +238,7 @@ def setplot(plotdata=None):
     plotaxes.title = "Depth Transect"
     plotaxes.xlabel = "x (m)"
     plotaxes.ylabel = r"$h$"
-    plotaxes.xlimits = [clawdata.lower[0], clawdata.upper[0]]
+    plotaxes.xlimits = domain_limits[0]
     # plotaxes.ylimits = [0.97, 1.01]
     plotaxes.ylimits = surface_limits
     plotaxes.grid = True
@@ -278,7 +256,7 @@ def setplot(plotdata=None):
     plotaxes.title = "Velocity Transect"
     plotaxes.xlabel = "x (m)"
     plotaxes.ylabel = r"$u$"
-    plotaxes.xlimits = [clawdata.lower[0], clawdata.upper[0]]
+    plotaxes.xlimits = domain_limits[0]
     plotaxes.ylimits = speed_limits
     plotaxes.grid = True
     # plotaxes.afteraxes = lambda cd: compute_max(cd, field=1)
@@ -321,13 +299,12 @@ def setplot(plotdata=None):
     plotaxes = plotfigure.new_plotaxes()
     plotaxes.title = 'Gauge Locations'
     plotaxes.scaled = True
-    plotaxes.xlimits = (clawdata.lower[0], clawdata.upper[0])
-    plotaxes.ylimits = (clawdata.lower[1], clawdata.upper[1])
+    plotaxes.xlimits = domain_limits[0]
+    plotaxes.ylimits = domain_limits[1]
     plotaxes.afteraxes = gauge_location_afteraxes
     surgeplot.add_surface_elevation(plotaxes, bounds=surface_limits)
-    surgeplot.add_land(plotaxes, bounds=[0.0, 20.0])
+    plotaxes.plotitem_dict['surface'].plot_var = extract_eta
     plotaxes.plotitem_dict['surface'].amr_patchedges_show = [0] * 10
-    plotaxes.plotitem_dict['land'].amr_patchedges_show = [0] * 10
 
     # -----------------------------------------
     # Parameters used only when creating html and/or latex hardcopy

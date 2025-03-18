@@ -7,6 +7,7 @@
 _output
 .plots
 _plots
+_py_output
 *.storm
 pyclaw.log
 xgeoclaw
