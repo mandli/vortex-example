@@ -11,6 +11,7 @@ _py_output
 *.storm
 pyclaw.log
 xgeoclaw
+convergence.pdf
 
 # MacOS
 .DS_Store
