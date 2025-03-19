@@ -49,20 +49,16 @@ RIEMANN = $(CLAW)/riemann/src
 MODULES = \
 
 SOURCES = \
-  ./rpn2_shallow_fwave.f90 \
   $(RIEMANN)/rpt2_geoclaw.f \
   $(RIEMANN)/geoclaw_riemann_utils.f \
   ./qinit.f90
 
-# $(RIEMANN)/rpn2_geoclaw.f \
-
-  
-  
-
-
-
-
-
+RP ?= geoclaw
+ifeq ($(RP), simple)
+  SOURCES += ./rpn2_shallow_fwave.f90
+else ifeq ($(RP), geoclaw)
+  SOURCES += $(RIEMANN)/rpn2_geoclaw.f
+endif
 
 #-------------------------------------------------------------------
 # Include Makefile containing standard definitions and make options:

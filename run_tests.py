@@ -3,6 +3,7 @@
 import os
 import numpy
 import datetime
+import subprocess
 
 import batch.batch
 
@@ -16,13 +17,13 @@ days2seconds = lambda days: days * 60.0**2 * 24.0
 
 class VortexJob(batch.batch.Job):
 
-    def __init__(self, num_cells, rp_type='simple'):
+    def __init__(self, num_cells, rp_type):
 
         super(VortexJob, self).__init__()
 
         self.rp_type = rp_type
 
-        self.type = "vortex"
+        self.type = "vortex_example"
         self.name = rp_type
         self.prefix = f"n{str(num_cells).zfill(4)}"
         self.executable = "xgeoclaw"
@@ -32,7 +33,9 @@ class VortexJob(batch.batch.Job):
         self.rundata = setrun.setrun()
 
         self.rundata.clawdata.num_cells = [num_cells, num_cells]
+        self.rundata.clawdata.output_format = 'binary'
         self.rundata.amrdata.max1d = 3000
+
 
     def __str__(self):
         output = super(VortexJob, self).__str__()
@@ -51,11 +54,20 @@ class VortexJob(batch.batch.Job):
 if __name__ == '__main__':
 
     jobs = []
-    for num_cells in [2**n for n in range(6, 12)]:
-        jobs.append(VortexJob(num_cells, rp_type='simple'))
+    for rp_type in ['simple', 'geoclaw']:
+        subprocess.run(['make', 'new', f'RP={rp_type}'])
+        jobs = []
+        # for num_cells in [2**n for n in range(6, 12)]:
+        for num_cells in [50, 100, 200, 400, 800, 1600]:
+            jobs.append(VortexJob(num_cells, rp_type))
 
-    controller = batch.batch.BatchController(jobs)
-    controller.wait = True
-    controller.plot = False
-    print(controller)
-    controller.run()
+        controller = batch.batch.BatchController(jobs)
+        controller.wait = True
+        controller.plot = False
+        print(controller)
+        controller.run()
+
+        print(f"Done with {rp_type}!")
+
+    # Run convergence script
+    subprocess.run(['./plot_comparison.py'])
