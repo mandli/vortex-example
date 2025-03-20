@@ -18,21 +18,30 @@ try:
 except:
     setplotfg = None
 
+M = .5
+g = 1.0
+c1 = 0.04
+c2 = 0.02
+alpha = np.pi / 6.
+x0 = -20.
+y0 = -10.
 def exact_solution(x, y, t):
-    M = .5
-    g = 1.0
-    c1 = 0.04
-    c2 = 0.02
-    alpha = np.pi / 6.
-    x0 = -20.
-    y0 = -10.
-
     f = lambda x,y,t: -c2*((x-x0-M*t*np.cos(alpha))**2+(y-y0-M*t*np.sin(alpha))**2)
     h = lambda x,y,t: 1.-c1**2/(4.*c2*g)*np.exp(2.*f(x,y,t))
     u = lambda x,y,t: M*np.cos(alpha)+c1*(y-y0-M*t*np.sin(alpha))*np.exp(f(x,y,t))
     v = lambda x,y,t: M*np.sin(alpha)-c1*(x-x0-M*t*np.cos(alpha))*np.exp(f(x,y,t))
 
     return h(x, y, t), u(x, y, t), v(x, y, t)
+
+def exact_vorticity(x, y, t):
+    f = lambda x,y,t: -c2*((x-x0-M*t*np.cos(alpha))**2+(y-y0-M*t*np.sin(alpha))**2)
+    f_x = lambda x, y, t: -2 * c2 * (x - x0 - M * t * np.cos(alpha))
+    f_y = lambda x, y, t: -2 * c2 * (y - y0 - M * t * np.sin(alpha))
+
+    u_y = lambda x, y, t:  c1 * np.exp(f(x, y, t)) * (1 + (y - y0 - M * t * np.sin(alpha)) * f_y(x, y, t))
+    v_x = lambda x, y, t: -c1 * np.exp(f(x, y, t)) * (1 + (x - x0 - M * t * np.cos(alpha)) * f_x(x, y, t))
+
+    return v_x(x, y, t) - u_y(x, y, t)
 
 def extract_eta(cd):
     return cd.q[0, :, :] - 1
@@ -48,9 +57,10 @@ def speed_error(cd):
 
 def vorticity_error(cd):
     omega = surgeplot.water_vorticity(cd)
-    h, u, v = exact_solution(cd.x, cd.y, cd.t)
-    delta = [cd.x[1, 0] - cd.x[0, 0], cd.y[0, 1] - cd.y[0, 0]]
-    exact_omega = surgeplot.extract_vorticity(delta, u, v)
+    # h, u, v = exact_solution(cd.x, cd.y, cd.t)
+    # delta = [cd.x[1, 0] - cd.x[0, 0], cd.y[0, 1] - cd.y[0, 0]]
+    # exact_omega = surgeplot.extract_vorticity(delta, u, v)
+    exact_omega = exact_vorticity(cd.x, cd.y, cd.t)
     return omega - exact_omega
 
 # Setplot
