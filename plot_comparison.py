@@ -97,7 +97,7 @@ def plot_convergence(base_path, ax, ord=1, frame=10, verbose=False):
 
     ax.set_title(f"Convergence")
     ax.set_xlabel(r"$N$")
-    ax.set_ylabel(r"$q[{}]$".format(field))
+    ax.set_ylabel(r"$|| E ||_{}$".format(ord))
     ax.legend()
 
 
