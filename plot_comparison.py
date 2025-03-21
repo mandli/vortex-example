@@ -6,6 +6,8 @@ get that to work we would have to do more to access more than one grid.
 """
 
 import os
+import sys
+import glob
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -17,9 +19,7 @@ from setplot import exact_solution, exact_vorticity
 
 def plot_convergence(base_path, ax, ord=1, frame=10, verbose=False):
 
-    # N = np.array([2**n for n in range(6, 12)])
-    N = np.array([50, 100, 200, 400, 800, 1600])
-    colors = {"geoclaw": "red", "simple": "blue"}
+    colors = {"geoclaw": "red", "simple": "blue", "pyclaw": "green"}
     markers = ['.', 'x', '+', 'o']
     out_str = ""
 
@@ -30,10 +30,15 @@ def plot_convergence(base_path, ax, ord=1, frame=10, verbose=False):
         vorticity_error = []
         if verbose:
             print(f"{rp_type}")
-        for num_cells in N:
+        # Look for what N should be
+        num_cells = []
+        for path in glob.glob(os.path.join(base_path, rp_type, "n*_output")):
+            num_cells.append(int(os.path.split(path)[-1][1:5]))
+        num_cells.sort()
+        for N in num_cells:
             # Load computed solution
             path = os.path.join(base_path, rp_type, 
-                                f"n{str(num_cells).zfill(4)}_output")
+                                f"n{str(N).zfill(4)}_output")
             if verbose:
                 print(f" -> Loading from {path}")
             solution = sol.Solution(path=path, frame=frame, file_format='binary')
@@ -61,16 +66,16 @@ def plot_convergence(base_path, ax, ord=1, frame=10, verbose=False):
             vorticity_error.append(np.linalg.norm(omega_exact - omega) * delta.prod())
 
         # Compute convergence rate
-        rates = [-np.polyfit(np.log(N), np.log(h_error), 1)[0].round(4),
-                 -np.polyfit(np.log(N), np.log(hu_error), 1)[0].round(4),
-                 -np.polyfit(np.log(N), np.log(hv_error), 1)[0].round(4),
-                 -np.polyfit(np.log(N), np.log(vorticity_error), 1)[0].round(4)
+        rates = [-np.polyfit(np.log(num_cells), np.log(h_error), 1)[0].round(4),
+                 -np.polyfit(np.log(num_cells), np.log(hu_error), 1)[0].round(4),
+                 -np.polyfit(np.log(num_cells), np.log(hv_error), 1)[0].round(4),
+                 -np.polyfit(np.log(num_cells), np.log(vorticity_error), 1)[0].round(4)
                 ]
         out_str += f"{rp_type}\n"
         out_str += "N     h          hu         hv         vorticity \n"
         out_str += "----- ---------- ---------- ---------- ----------\n"
-        for (i, num_cells) in enumerate(N):
-            out_str += "{0: >5} ".format(num_cells)
+        for (i, N) in enumerate(num_cells):
+            out_str += "{0: >5} ".format(N)
             out_str += "{0: >10.8f} ".format(h_error[i].round(8))
             out_str += "{0: >10.8f} ".format(hu_error[i].round(8))
             out_str += "{0: >10.8f} ".format(hv_error[i].round(8))
@@ -81,15 +86,15 @@ def plot_convergence(base_path, ax, ord=1, frame=10, verbose=False):
             print(out_str)
         
         # Plot errors
-        ax.loglog(N, h_error, color=colors[rp_type], marker=markers[0], markersize=5, 
-                              label=f"h: {rates[0]}")
-        ax.loglog(N, hu_error, color=colors[rp_type], marker=markers[1], markersize=5, 
-                               label=f"hu: {rates[1]}")
-        ax.loglog(N, hv_error, color=colors[rp_type], marker=markers[2], markersize=5, 
-                               label=f"hv: {rates[2]}")
-        ax.plot(N, vorticity_error, color=colors[rp_type], marker=markers[3], 
-                                    markersize=5, 
-                                    label=r"$\omega$: {}".format(rates[3]))
+        ax.loglog(num_cells, h_error, color=colors[rp_type], marker=markers[0], markersize=5, 
+                                      label=f"h: {rates[0]}")
+        ax.loglog(num_cells, hu_error, color=colors[rp_type], marker=markers[1], markersize=5, 
+                                       label=f"hu: {rates[1]}")
+        ax.loglog(num_cells, hv_error, color=colors[rp_type], marker=markers[2], markersize=5, 
+                                       label=f"hv: {rates[2]}")
+        ax.plot(num_cells, vorticity_error, color=colors[rp_type], marker=markers[3], 
+                                            markersize=5, 
+                                            label=r"$\omega$: {}".format(rates[3]))
     
 
     with open('convergence.txt', 'w') as convergence_file:
@@ -102,6 +107,11 @@ def plot_convergence(base_path, ax, ord=1, frame=10, verbose=False):
 
 
 if __name__ == '__main__':
+    # if len(sys.argv) > 1:
+    #     N = [int(value) for value in sys.argv[1:]]
+    # else:
+    #     N = np.array([2**n for n in range(6, 11)])
+        # N = np.array([50, 100, 200, 400, 800, 1600])
     base_path = os.path.expandvars(os.path.join("${DATA_PATH}", 
                                                 "vortex_example"))
     # Convergence

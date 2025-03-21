@@ -15,6 +15,10 @@ variable bathymetry:
 The bathymetry is flat in this example, but there is a translating vortex
 """
 
+import sys
+import os
+import subprocess
+
 import numpy as np
 
 from clawpack import riemann
@@ -24,7 +28,7 @@ from clawpack.riemann.shallow_roe_with_efix_2D_constants import depth, x_momentu
 import setplot
 
 def setup(kernel_language='Fortran', solver_type='classic', use_petsc=False,
-          outdir='./_py_output'):
+          outdir='./_py_output', N=256):
 
     solver = pyclaw.ClawSolver2D(riemann.shallow_bathymetry_fwave_2D)
     solver.dimensional_split = 1  # No transverse solver available
@@ -39,7 +43,6 @@ def setup(kernel_language='Fortran', solver_type='classic', use_petsc=False,
     solver.aux_bc_lower[1] = pyclaw.BC.extrap
     solver.aux_bc_upper[1] = pyclaw.BC.extrap
 
-    N = 2**8
     x = pyclaw.Dimension(-50, 50, N, name='x')
     y = pyclaw.Dimension(-50, 50, N, name='y')
     domain = pyclaw.Domain([x, y])
@@ -70,5 +73,19 @@ def setup(kernel_language='Fortran', solver_type='classic', use_petsc=False,
     return claw
 
 if __name__=="__main__":
-    from clawpack.pyclaw.util import run_app_from_main
-    output = run_app_from_main(setup, setplot)
+    from clawpack.pyclaw.util import run_app_from_main, _info_from_argv
+    petsc_args, pyclaw_kwargs = _info_from_argv(sys.argv)
+    run_conv = bool(pyclaw_kwargs.pop('conv', False))
+    if run_conv:
+        base_path = os.path.expandvars(os.path.join("$DATA_PATH", "vortex_example", "pyclaw"))
+        num_cells = [2**n for n in range(6, 11)]
+        for N in num_cells:
+            path = os.path.join(base_path, f"n{str(N).zfill(4)}_output")
+            claw = setup(outdir=path, N=N)
+            print(f"Running {N}: {path}")
+            claw.run()
+        subprocess.run(["./plot_comparison.py", num_cells])
+    else:
+        claw = run_app_from_main(setup, setplot)
+
+    
